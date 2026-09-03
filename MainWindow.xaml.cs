@@ -142,12 +142,20 @@ namespace WpfApp3
                 FileInfo fileInfo =
                     new FileInfo(selectedFile);
 
+                StatusText.Text =
+                    "Calculating SHA-256...";
+
+                string sha256 =
+                    await FileTransfer.CalculateSha256Async(
+                        selectedFile);
+
                 TransferRequest request =
                     new TransferRequest
                     {
                         FileName = fileInfo.Name,
                         FileSize = fileInfo.Length,
-                        SenderName = Environment.MachineName
+                        SenderName = Environment.MachineName,
+                        Sha256 = sha256
                     };
 
                 using TcpClient client =
@@ -251,7 +259,7 @@ namespace WpfApp3
 
                 MessageBox.Show(
                     $"File sent successfully.\n\n" +
-                    $"{fileInfo.Name}",
+                    $"SHA-256:\n{sha256}",
                     "LAN Transfer");
             }
             catch (Exception ex)
@@ -378,24 +386,46 @@ namespace WpfApp3
                                 $"{percentage:F0}%";
                         });
 
-                await FileTransfer.ReceiveFileAsync(
-                    stream,
-                    destinationPath,
-                    request.FileSize,
-                    progress);
+                string receivedSha256 =
+                    await FileTransfer.ReceiveFileAsync(
+                        stream,
+                        destinationPath,
+                        request.FileSize,
+                        progress);
+
+                bool hashMatches =
+                    string.Equals(
+                        request.Sha256,
+                        receivedSha256,
+                        StringComparison.OrdinalIgnoreCase);
 
                 Dispatcher.Invoke(() =>
                 {
                     TransferProgress.Value = 100;
                     ProgressText.Text = "100%";
 
-                    StatusText.Text =
-                        "File received successfully.";
+                    if (hashMatches)
+                    {
+                        StatusText.Text =
+                            "File received and verified.";
 
-                    MessageBox.Show(
-                        $"File received successfully.\n\n" +
-                        $"Saved to:\n{destinationPath}",
-                        "LAN Transfer");
+                        MessageBox.Show(
+                            $"File received successfully.\n\n" +
+                            $"SHA-256 verified:\n{receivedSha256}\n\n" +
+                            $"Saved to:\n{destinationPath}",
+                            "LAN Transfer");
+                    }
+                    else
+                    {
+                        StatusText.Text =
+                            "Integrity verification failed.";
+
+                        MessageBox.Show(
+                            $"The file was received, but SHA-256 verification failed.\n\n" +
+                            $"Expected:\n{request.Sha256}\n\n" +
+                            $"Received:\n{receivedSha256}",
+                            "LAN Transfer");
+                    }
                 });
             }
             catch (Exception ex)

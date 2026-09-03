@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace WpfApp3
@@ -9,14 +10,32 @@ namespace WpfApp3
     {
         private const int BufferSize = 64 * 1024;
 
+        public static async Task<string> CalculateSha256Async(
+            string filePath)
+        {
+            using FileStream stream =
+                new FileStream(
+                    filePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read);
+
+            byte[] hash =
+                await SHA256.HashDataAsync(stream);
+
+            return Convert.ToHexString(hash);
+        }
+
         public static async Task SendFileAsync(
             NetworkStream stream,
             string filePath,
             IProgress<double>? progress = null)
         {
-            FileInfo fileInfo = new FileInfo(filePath);
+            FileInfo fileInfo =
+                new FileInfo(filePath);
 
-            byte[] buffer = new byte[BufferSize];
+            byte[] buffer =
+                new byte[BufferSize];
 
             long totalSent = 0;
 
@@ -55,13 +74,14 @@ namespace WpfApp3
             progress?.Report(100);
         }
 
-        public static async Task ReceiveFileAsync(
+        public static async Task<string> ReceiveFileAsync(
             NetworkStream stream,
             string filePath,
             long fileSize,
             IProgress<double>? progress = null)
         {
-            byte[] buffer = new byte[BufferSize];
+            byte[] buffer =
+                new byte[BufferSize];
 
             long totalReceived = 0;
 
@@ -109,6 +129,9 @@ namespace WpfApp3
             await fileStream.FlushAsync();
 
             progress?.Report(100);
+
+            return await CalculateSha256Async(
+                filePath);
         }
     }
 }

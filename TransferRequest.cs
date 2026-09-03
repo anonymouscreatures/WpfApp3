@@ -12,6 +12,8 @@ namespace WpfApp3
 
         public string SenderName { get; set; } = "";
 
+        public string Sha256 { get; set; } = "";
+
         public string RequestId { get; set; } =
             Guid.NewGuid().ToString();
     }
